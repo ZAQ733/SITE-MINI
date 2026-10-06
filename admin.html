@@ -1,0 +1,47 @@
+<!DOCTYPE html><html lang="mn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Админ · MongoNet</title>
+<style>
+:root{--bg:#0f1226;--c:#1a1f3d;--p:#6c5ce7;--t:#eef;--m:#9aa3d0}
+*{box-sizing:border-box}body{margin:0;font:14px system-ui,sans-serif;background:var(--bg);color:var(--t);padding:16px}
+.w{max-width:980px;margin:0 auto}.card{background:var(--c);border-radius:16px;padding:18px;margin-bottom:14px;overflow-x:auto}
+h2{margin:0 0 4px;font-size:17px}.sub{color:var(--m);margin:0 0 12px;font-size:13px}
+input{padding:9px;border-radius:9px;border:1px solid #333a66;background:#10142e;color:var(--t);font:inherit}
+button{padding:7px 11px;border:0;border-radius:8px;background:var(--p);color:#fff;font:inherit;cursor:pointer;margin:2px}
+.r{background:#d63031}.g{background:#00b894}.y{background:#e17055}table{width:100%;border-collapse:collapse}td,th{padding:9px;text-align:left;border-bottom:1px solid #2a3060;white-space:nowrap}th{color:var(--m);font-weight:500}
+.neg{color:#ff7675}.hide{display:none}code{color:#fdcb6e}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.st{background:#10142e;border-radius:12px;padding:12px}.st b{display:block;font-size:22px;margin-top:4px}.set{display:flex;gap:14px;flex-wrap:wrap;align-items:end}
+.set label{display:block;color:var(--m);font-size:12px;margin-bottom:3px}
+</style></head><body><div class="w">
+<div id="lg" class="card" style="max-width:340px;margin:15vh auto"><h2>Админ нэвтрэх</h2><p class="sub">Админ нууц үгээ оруулна уу</p><input id="ap" type="password" placeholder="Нууц үг" style="width:100%" onkeydown="if(event.key=='Enter')enter()"><p id="e" class="neg"></p><button onclick="enter()">Нэвтрэх</button></div>
+<div id="ad" class="hide">
+<div class="card"><h2>Ерөнхий мэдээлэл</h2><div class="stats">
+<div class="st">Хэрэглэгч<b id="s1"></b></div><div class="st">Нийт мөнгө<b id="s2"></b></div><div class="st">Нийт зээл<b id="s3" class="neg"></b></div><div class="st">Дараагийн татвар<b id="s4" style="font-size:15px"></b></div></div></div>
+<div class="card"><h2>Тохиргоо</h2><p class="sub">Татвар 24 цаг тутамд зөвхөн эерэг үлдэгдэлээс автоматаар авагдана.</p>
+<div class="set"><div><label>Татварын хувь (%)</label><input id="tp" type="number" min="0" max="100" style="width:110px"></div>
+<div><label>Зээлийн дээд хязгаар (₮)</label><input id="dl" type="number" min="0" style="width:140px"></div>
+<button class="g" onclick="setS()">Хадгалах</button><button class="y" onclick="if(confirm('Одоо татвар авах уу?'))a('taxnow')">Татвар одоо авах</button>
+<button class="r" onclick="if(confirm('Бүх зээлийг 0 болгох уу?'))a('clearDebt',{})">Бүх зээл цэвэрлэх</button></div></div>
+<div class="card"><h2>Хэрэглэгчид</h2><p class="sub">Нэр засах, нууц үг солих, мөнгө нэмэх/хасах, зээл цэвэрлэх, устгах</p>
+<input id="q" placeholder="🔍 Нэрээр хайх" oninput="draw()" style="margin-bottom:8px;width:220px">
+<table><thead><tr><th>Нэр</th><th>Нууц үг</th><th>Үлдэгдэл</th><th>Үйлдэл</th></tr></thead><tbody id="tb"></tbody></table></div>
+<div class="card"><h2>Сүүлийн гүйлгээнүүд</h2><p class="sub">Хэн хэнд хэдийг шилжүүлснийг харах</p>
+<table><thead><tr><th>Цаг</th><th>Хэнээс</th><th>Хэнд</th><th>Дүн</th><th>Тэмдэглэл</th></tr></thead><tbody id="hx"></tbody></table></div>
+</div></div>
+<script>
+const $=i=>document.getElementById(i);let ap=sessionStorage.a||'',D=null;
+const a=async(u,b)=>{const r=await fetch('/api/admin/'+u,{method:'POST',headers:{'x-admin':ap,'Content-Type':'application/json'},body:JSON.stringify(b||{})});const j=await r.json();if(!r.ok){alert(j.error);return null}load();return j};
+async function enter(){ap=$('ap').value;const r=await fetch('/api/admin/users',{method:'POST',headers:{'x-admin':ap}});if(!r.ok){$('e').textContent='Нууц үг буруу байна';return}sessionStorage.a=ap;load()}
+async function load(){const r=await fetch('/api/admin/users',{method:'POST',headers:{'x-admin':ap}});if(!r.ok){sessionStorage.removeItem('a');return}D=await r.json();
+$('lg').classList.add('hide');$('ad').classList.remove('hide');const U=D.users;
+$('s1').textContent=U.length;$('s2').textContent=U.reduce((s,u)=>s+(u.balance>0?u.balance:0),0).toLocaleString()+' ₮';$('s3').textContent=U.reduce((s,u)=>s+(u.balance<0?u.balance:0),0).toLocaleString()+' ₮';
+$('s4').textContent=new Date(D.settings.nextTax).toLocaleString();
+if(document.activeElement.id!='tp'&&document.activeElement.id!='dl'){$('tp').value=D.settings.taxPercent;$('dl').value=D.settings.debtLimit}
+$('hx').innerHTML=D.tx.map(x=>`<tr><td>${new Date(x.t).toLocaleString()}</td><td>${x.from}</td><td>${x.to}</td><td>${x.amt.toLocaleString()} ₮</td><td>${(x.note||'').replace(/</g,'&lt;')}</td></tr>`).join('')||'<tr><td colspan=5>Гүйлгээ алга</td></tr>';draw()}
+function draw(){if(!D)return;const q=$('q').value.toLowerCase();
+$('tb').innerHTML=D.users.filter(u=>u.name.toLowerCase().includes(q)).map(u=>`<tr><td><b>${u.name}</b></td><td><code>${u.password}</code></td><td class="${u.balance<0?'neg':''}">${u.balance.toLocaleString()} ₮</td><td>
+<button onclick="ed('${u.name}')">✏️ Засах</button><button class="g" onclick="mn('${u.name}',1)">＋ Нэмэх</button><button class="y" onclick="mn('${u.name}',-1)">－ Хасах</button>
+<button onclick="a('clearDebt',{name:'${u.name}'})">Зээл цэвэрлэх</button><button class="r" onclick="if(confirm('${u.name}-г устгах уу?'))a('delete',{name:'${u.name}'})">🗑 Устгах</button></td></tr>`).join('')||'<tr><td colspan=4>Хэрэглэгч алга</td></tr>'}
+function ed(n){const nn=prompt('Шинэ нэр (хэвээр үлдээх бол хоосон үлдээнэ):',n);if(nn===null)return;const pw=prompt('Шинэ нууц үг 4-8 тэмдэгт (өөрчлөхгүй бол хоосон):','');if(pw===null)return;a('save',{name:n,newName:nn,password:pw})}
+function mn(n,s){const v=prompt(n+(s>0?'-д хэдийг нэмэх вэ?':'-с хэдийг хасах вэ?'));if(v&&+v>0)a('money',{name:n,delta:s*+v})}
+function setS(){a('settings',{taxPercent:$('tp').value,debtLimit:$('dl').value})}
+setInterval(()=>{if(ap&&!$('ad').classList.contains('hide'))load()},4000);if(ap)load();
+</script></body></html>

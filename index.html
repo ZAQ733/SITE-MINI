@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MongoNet</title>
+<style>
+:root{--bg:#0f1226;--c:#1a1f3d;--p:#6c5ce7;--t:#eef;--m:#9aa3d0}
+*{box-sizing:border-box}body{margin:0;font:15px system-ui,sans-serif;background:radial-gradient(circle at 20% 0,#2a2468,var(--bg));color:var(--t);min-height:100vh;display:grid;place-items:center;padding:16px}
+.wrap{display:grid;gap:24px;grid-template-columns:1fr 1fr;max-width:860px;width:100%;align-items:center}
+.grid{display:grid;gap:16px;grid-template-columns:1fr 1fr;max-width:860px;width:100%}
+@media(max-width:700px){.wrap,.grid{grid-template-columns:1fr}}
+.card{background:var(--c);border-radius:20px;padding:26px;box-shadow:0 20px 60px #0008}
+h1{font-size:40px;margin:0 0 8px;background:linear-gradient(90deg,#a29bfe,#74b9ff);-webkit-background-clip:text;color:transparent}
+h3{margin:0 0 10px}p{color:var(--m)}input{width:100%;padding:13px;margin:6px 0;border-radius:12px;border:1px solid #333a66;background:#10142e;color:var(--t);font:inherit}
+button{padding:12px 18px;border:0;border-radius:12px;background:var(--p);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.full{width:100%;margin-top:6px}.err{color:#ff7675;min-height:20px}.ok{color:#55efc4}a{color:#74b9ff}
+.bal{font-size:44px;font-weight:800}.neg{color:#ff7675}.row{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #2a3060}
+.row small{color:var(--m);display:block}.hide{display:none}.out{color:#ff7675}.in{color:#55efc4}
+</style></head><body>
+<div id="login" class="wrap"><div><h1>MongoNet</h1><p>Connect with friends and send virtual money.</p></div>
+<div class="card"><input id="n" placeholder="Name"><input id="pw" type="password" placeholder="Password">
+<div class="err" id="e"></div><button class="full" onclick="login()">Log in</button>
+<p style="text-align:center">Don't have an account? <a href="signup.html">Sign up</a></p></div></div>
+<div id="dash" class="hide"><div class="grid">
+<div class="card"><p>Сайн уу, <b id="who"></b> · <a href="#" onclick="logout()">Гарах</a></p><p style="margin:0">Таны үлдэгдэл</p><div class="bal" id="bal"></div>
+<p id="tx"></p><h3>Мөнгө шилжүүлэх</h3><input id="to" list="ul" placeholder="Хүлээн авагчийн нэр" oninput="chk()" autocomplete="off"><datalist id="ul"></datalist>
+<div id="rc" style="min-height:20px"></div>
+<input id="am" type="number" min="1" placeholder="Дүн (₮)"><input id="nt" maxlength="60" placeholder="Тэмдэглэл (заавал биш)">
+<div class="err" id="e2"></div><button class="full" onclick="send()">Илгээх</button></div>
+<div class="card"><h3>Сүүлийн гүйлгээ</h3><div id="hs"></div></div></div></div>
+<script>
+const $=i=>document.getElementById(i);let tk=localStorage.t,nx=0,pct=0,names=[],me='';
+const api=async(u,b)=>{const r=await fetch('/api/'+u,{method:b?'POST':'GET',headers:{'x-token':tk||'','Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});const j=await r.json();if(!r.ok)throw j.error||'Error';return j};
+async function login(){try{tk=(await api('login',{name:$('n').value,password:$('pw').value})).token;localStorage.t=tk;load()}catch(x){$('e').textContent=x=='Incorrect'?'Incorrect name or password':x}}
+function logout(){localStorage.removeItem('t');tk=null;$('dash').classList.add('hide');$('login').classList.remove('hide');document.documentElement.lang='en'}
+function chk(){const v=$('to').value.trim();$('rc').innerHTML=!v?'':v==me?'<span class="out">Өөрт шилжүүлэх боломжгүй</span>':names.includes(v)?'<span class="ok">✓ Хүлээн авагч: <b>'+v+'</b></span>':'<span class="out">Ийм хэрэглэгч олдсонгүй</span>'}
+async function load(){if(!tk)return;try{const m=await api('me'),u=await api('users');nx=m.nextTax;pct=m.taxPercent;me=m.name;names=u.map(x=>x.name).filter(x=>x!=me);
+$('login').classList.add('hide');$('dash').classList.remove('hide');document.documentElement.lang='mn';$('who').textContent=m.name;
+$('bal').textContent=m.balance.toLocaleString()+' ₮';$('bal').className='bal'+(m.balance<0?' neg':'');
+$('ul').innerHTML=names.map(x=>`<option value="${x}">`).join('');chk();
+$('hs').innerHTML=m.history.length?m.history.map(h=>{const o=h.from==me,d=new Date(h.t).toLocaleString('mn-MN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+return `<div class="row"><div>${o?'→ '+h.to:'← '+h.from}<small>${d}${h.note?' · '+h.note.replace(/</g,'&lt;'):''}</small></div><b class="${o?'out':'in'}">${o?'−':'+'}${h.amt.toLocaleString()} ₮</b></div>`}).join(''):'<p>Одоогоор гүйлгээ алга.</p>'}catch(x){logout()}}
+async function send(){try{if(!names.includes($('to').value.trim()))throw 'Хүлээн авагч олдсонгүй';await api('transfer',{to:$('to').value.trim(),amount:$('am').value,note:$('nt').value});$('e2').textContent='';$('am').value=$('nt').value=''}catch(x){$('e2').textContent=x}}
+setInterval(()=>{const s=Math.max(0,nx-Date.now())/1e3|0;$('tx').textContent=`Татвар ${pct}% · дараагийн татвар: ${s/3600|0}:${String(s/60%60|0).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`},1000);
+new EventSource('/api/events').onmessage=load;load();
+</script></body></html>
